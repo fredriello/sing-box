@@ -19,7 +19,6 @@ existing `salamander`. Gecko supports configurable
 (default 1200) fields.
 
 #### 1.14.0-alpha.25
-
 * Revert Tailscale endpoint dial fields deprecation and remove `control_http_client` **1**
 * Fixes and improvements
 
