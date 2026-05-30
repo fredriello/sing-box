@@ -1,0 +1,164 @@
+name: Release CFST Build
+
+on:
+  push:
+    tags:
+      - "v*-cfst*"
+    branches:
+      - "v*-cfst*"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Release version (e.g. 1.13.12-cfst1)"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build ${{ matrix.os }}-${{ matrix.arch }}
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - { os: linux, arch: amd64, suffix: "" }
+          - { os: linux, arch: arm64, suffix: "" }
+          - { os: windows, arch: amd64, suffix: ".exe" }
+          - { os: windows, arch: arm64, suffix: ".exe" }
+          - { os: darwin, arch: amd64, suffix: "" }
+          - { os: darwin, arch: arm64, suffix: "" }
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.24"
+
+      - name: Determine version
+        id: version
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "version=${{ inputs.version }}" >> "$GITHUB_OUTPUT"
+          elif [[ "${GITHUB_REF}" == refs/tags/* ]]; then
+            TAG="${GITHUB_REF#refs/tags/v}"
+            echo "version=${TAG}" >> "$GITHUB_OUTPUT"
+          else
+            BRANCH="${GITHUB_REF#refs/heads/}"
+            echo "version=${BRANCH}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Set build tags
+        run: |
+          echo "BUILD_TAGS=with_gvisor,with_quic,with_dhcp,with_wireguard,with_utls,with_acme,with_clash_api,with_tailscale" >> "$GITHUB_ENV"
+
+      - name: Build
+        env:
+          CGO_ENABLED: "0"
+          GOOS: ${{ matrix.os }}
+          GOARCH: ${{ matrix.arch }}
+        run: |
+          set -xeuo pipefail
+          VERSION="${{ steps.version.outputs.version }}"
+          LDFLAGS_SHARED="$(cat release/LDFLAGS)"
+          mkdir -p dist
+
+          go build -v -trimpath \
+            -o "dist/sing-box${{ matrix.suffix }}" \
+            -tags "${BUILD_TAGS}" \
+            -ldflags "-X 'github.com/sagernet/sing-box/constant.Version=${VERSION}' ${LDFLAGS_SHARED} -s -w -buildid=" \
+            ./cmd/sing-box
+
+      - name: Package
+        run: |
+          set -xeuo pipefail
+          VERSION="${{ steps.version.outputs.version }}"
+          DIR_NAME="sing-box-${VERSION}-${{ matrix.os }}-${{ matrix.arch }}"
+          cd dist
+          mkdir -p "${DIR_NAME}"
+          cp ../LICENSE "${DIR_NAME}/"
+          cp "sing-box${{ matrix.suffix }}" "${DIR_NAME}/"
+
+          if [[ "${{ matrix.os }}" == "windows" ]]; then
+            zip -r "${DIR_NAME}.zip" "${DIR_NAME}"
+          else
+            tar -czvf "${DIR_NAME}.tar.gz" "${DIR_NAME}"
+          fi
+          rm -rf "${DIR_NAME}" "sing-box${{ matrix.suffix }}"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-${{ matrix.os }}-${{ matrix.arch }}
+          path: dist/
+
+  release:
+    name: Create Release
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Determine version
+        id: version
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "version=${{ inputs.version }}" >> "$GITHUB_OUTPUT"
+          elif [[ "${GITHUB_REF}" == refs/tags/* ]]; then
+            TAG="${GITHUB_REF#refs/tags/v}"
+            echo "version=${TAG}" >> "$GITHUB_OUTPUT"
+          else
+            BRANCH="${GITHUB_REF#refs/heads/}"
+            echo "version=${BRANCH}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist/
+          merge-multiple: true
+
+      - name: List artifacts
+        run: ls -la dist/
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: "v${{ steps.version.outputs.version }}"
+          name: "sing-box v${{ steps.version.outputs.version }} (CFST)"
+          draft: false
+          prerelease: true
+          files: dist/*
+          body: |
+            ## sing-box v${{ steps.version.outputs.version }} with CFST Integration
+
+            This release includes CloudflareSpeedTest (CFST) integration and the `cfess` outbound type.
+
+            ### New Features
+            - **`cfess` outbound type**: Management-type VLESS outbound that supports dynamic sub-outbound generation from CFST results
+            - **CFST Service**: Built-in Cloudflare IP speed testing with API control
+            - **Dynamic Outbound Generation**: Auto-creates optimized VLESS outbounds from speed test results
+            - **URLTest Group**: Auto-creates/updates urltest group with generated outbounds
+            - **Cache & Resilience**: Results cached to disk, restored on restart, failure-safe
+
+            ### API Endpoints (via Clash API)
+            | Method | Path | Description |
+            |--------|------|-------------|
+            | GET | `/cfst/status` | Query service status |
+            | POST | `/cfst/run` | Trigger speed test |
+            | GET | `/cfst/results` | Get results (JSON or table) |
+            | POST | `/cfst/cancel` | Cancel running test |
+
+            ### Platforms
+            - Linux: amd64, arm64
+            - Windows: amd64, arm64
+            - macOS: amd64 (Intel), arm64 (Apple Silicon)
+
+            ### Base Version
+            Based on sing-box v1.13.12

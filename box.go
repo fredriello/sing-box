@@ -21,6 +21,7 @@ import (
 	"github.com/sagernet/sing-box/dns"
 	"github.com/sagernet/sing-box/experimental"
 	"github.com/sagernet/sing-box/experimental/cachefile"
+	"github.com/sagernet/sing-box/experimental/cfst"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing-box/protocol/direct"
@@ -343,6 +344,11 @@ func New(options Options) (*Box, error) {
 		cacheFile := cachefile.New(ctx, common.PtrValueOrDefault(experimentalOptions.CacheFile))
 		service.MustRegister[adapter.CacheFile](ctx, cacheFile)
 		internalServices = append(internalServices, cacheFile)
+	}
+	if experimentalOptions.CFST != nil && experimentalOptions.CFST.Enabled {
+		cfstService := cfst.NewService(ctx, logFactory.NewLogger("cfst"), common.PtrValueOrDefault(experimentalOptions.CFST))
+		service.MustRegister[adapter.CFSTService](ctx, cfstService)
+		internalServices = append(internalServices, cfstService)
 	}
 	if needClashAPI {
 		clashAPIOptions := common.PtrValueOrDefault(experimentalOptions.ClashAPI)

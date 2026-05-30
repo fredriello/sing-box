@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/binary"
 	"io"
+	"net/http"
 	"time"
 
 	"github.com/sagernet/sing/common/observable"
@@ -131,6 +132,10 @@ type OutboundGroup interface {
 	Outbound
 	Now() string
 	All() []string
+}
+
+type CFSTService interface {
+	APIRouter() http.Handler
 }
 
 type URLTestGroup interface {

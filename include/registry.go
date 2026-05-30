@@ -19,6 +19,7 @@ import (
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing-box/protocol/anytls"
 	"github.com/sagernet/sing-box/protocol/block"
+	"github.com/sagernet/sing-box/protocol/cfess"
 	"github.com/sagernet/sing-box/protocol/direct"
 	"github.com/sagernet/sing-box/protocol/group"
 	"github.com/sagernet/sing-box/protocol/http"
@@ -89,6 +90,7 @@ func OutboundRegistry() *outbound.Registry {
 	ssh.RegisterOutbound(registry)
 	shadowtls.RegisterOutbound(registry)
 	vless.RegisterOutbound(registry)
+	cfess.RegisterOutbound(registry)
 	anytls.RegisterOutbound(registry)
 
 	registerQUICOutbounds(registry)
