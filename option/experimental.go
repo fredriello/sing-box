@@ -7,6 +7,26 @@ type ExperimentalOptions struct {
 	ClashAPI  *ClashAPIOptions  `json:"clash_api,omitempty"`
 	V2RayAPI  *V2RayAPIOptions  `json:"v2ray_api,omitempty"`
 	Debug     *DebugOptions     `json:"debug,omitempty"`
+	CFST      *CFSTOptions      `json:"cfst,omitempty"`
+}
+
+type CFSTOptions struct {
+	Enabled       bool               `json:"enabled,omitempty"`
+	RunOnStart    bool               `json:"run_on_start,omitempty"`
+	Interval      badoption.Duration `json:"interval,omitempty"`
+	DownloadCount int                `json:"download_count,omitempty"`
+	DisplayCount  int                `json:"display_count,omitempty"`
+	CacheFile     string             `json:"cache_file,omitempty"`
+	CFESS         []CFESSMapping     `json:"cfess,omitempty"`
+}
+
+type CFESSMapping struct {
+	Tag             string `json:"tag"`
+	GroupTag        string `json:"group_tag"`
+	GeneratedCount  int    `json:"generated_count,omitempty"`
+	IncludeOriginal bool   `json:"include_original,omitempty"`
+	StableTags      bool   `json:"stable_tags,omitempty"`
+	TagTemplate     string `json:"tag_template,omitempty"`
 }
 
 type CacheFileOptions struct {
