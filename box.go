@@ -345,6 +345,11 @@ func New(options Options) (*Box, error) {
 		service.MustRegister[adapter.CacheFile](ctx, cacheFile)
 		internalServices = append(internalServices, cacheFile)
 	}
+	if experimentalOptions.CFST != nil && experimentalOptions.CFST.Enabled {
+		cfstService := cfst.NewService(ctx, logFactory.NewLogger("cfst"), common.PtrValueOrDefault(experimentalOptions.CFST))
+		service.MustRegister[adapter.CFSTService](ctx, cfstService)
+		internalServices = append(internalServices, cfstService)
+	}
 	if needClashAPI {
 		clashAPIOptions := common.PtrValueOrDefault(experimentalOptions.ClashAPI)
 		clashAPIOptions.ModeList = experimental.CalculateClashModeList(options.Options)
@@ -366,11 +371,6 @@ func New(options Options) (*Box, error) {
 			internalServices = append(internalServices, v2rayServer)
 			service.MustRegister[adapter.V2RayServer](ctx, v2rayServer)
 		}
-	}
-	if experimentalOptions.CFST != nil && experimentalOptions.CFST.Enabled {
-		cfstService := cfst.NewService(ctx, logFactory.NewLogger("cfst"), common.PtrValueOrDefault(experimentalOptions.CFST))
-		service.MustRegister[adapter.CFSTService](ctx, cfstService)
-		internalServices = append(internalServices, cfstService)
 	}
 	if ntpOptions.Enabled {
 		ntpDialer, err := dialer.New(ctx, ntpOptions.DialerOptions, ntpOptions.ServerIsDomain())

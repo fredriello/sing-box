@@ -1,7 +1,6 @@
 package cfst
 
 import (
-	"context"
 	"fmt"
 	"strings"
 
@@ -89,7 +88,7 @@ func (s *CFSTService) GenerateOutbounds(mapping option.CFESSMapping, results []R
 
 		// Create the outbound via outbound manager
 		err := s.outbound.Create(
-			context.Background(),
+			s.ctx,
 			s.router,
 			s.logger,
 			tag,
@@ -120,7 +119,7 @@ func (s *CFSTService) GenerateOutbounds(mapping option.CFESSMapping, results []R
 			Outbounds: groupOutbounds,
 		}
 		err := s.outbound.Create(
-			context.Background(),
+			s.ctx,
 			s.router,
 			s.logger,
 			groupTag,
