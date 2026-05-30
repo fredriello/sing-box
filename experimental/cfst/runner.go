@@ -1,6 +1,9 @@
 package cfst
 
-import "context"
+import (
+	"context"
+	"sync"
+)
 
 // Result represents a single speed test result for a Cloudflare IP.
 type Result struct {
@@ -13,14 +16,27 @@ type Result struct {
 	Colo            string  `json:"colo"`
 }
 
-// MockResults can be set for testing (non-nil means use mock).
-var MockResults []Result
+var (
+	mockMu      sync.RWMutex
+	MockResults []Result
+)
+
+// SetMockResults sets the mock results for testing (thread-safe).
+func SetMockResults(results []Result) {
+	mockMu.Lock()
+	MockResults = results
+	mockMu.Unlock()
+}
 
 // RunSpeedTest runs a Cloudflare speed test and returns the top results.
 // If MockResults is set, it returns that instead.
 func RunSpeedTest(ctx context.Context, downloadCount, displayCount int) ([]Result, error) {
-	if MockResults != nil {
-		return MockResults, nil
+	mockMu.RLock()
+	mock := MockResults
+	mockMu.RUnlock()
+
+	if mock != nil {
+		return mock, nil
 	}
 	// Default mock results for development
 	return []Result{

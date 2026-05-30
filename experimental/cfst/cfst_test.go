@@ -118,14 +118,16 @@ func TestSaveCacheCreatesDirs(t *testing.T) {
 
 func TestRunnerMock(t *testing.T) {
 	// Save and restore original MockResults
+	mockMu.RLock()
 	original := MockResults
-	defer func() { MockResults = original }()
+	mockMu.RUnlock()
+	defer SetMockResults(original)
 
 	// Test with custom mock
 	customResults := []Result{
 		{IP: "10.0.0.1", Sent: 10, Received: 10, LossRate: 0, AvgLatencyMS: 50.0, DownloadSpeedMB: 100.0, Colo: "SFO"},
 	}
-	MockResults = customResults
+	SetMockResults(customResults)
 
 	results, err := RunSpeedTest(context.Background(), 10, 5)
 	if err != nil {
@@ -139,7 +141,7 @@ func TestRunnerMock(t *testing.T) {
 	}
 
 	// Test with nil mock (default results)
-	MockResults = nil
+	SetMockResults(nil)
 	results, err = RunSpeedTest(context.Background(), 10, 5)
 	if err != nil {
 		t.Fatalf("RunSpeedTest (default) failed: %v", err)
@@ -228,11 +230,13 @@ func TestServiceResults(t *testing.T) {
 
 func TestConcurrency(t *testing.T) {
 	// Save and restore original MockResults
+	mockMu.RLock()
 	original := MockResults
-	defer func() { MockResults = original }()
+	mockMu.RUnlock()
+	defer SetMockResults(original)
 
 	// Use a slow mock to simulate running state
-	MockResults = []Result{{IP: "1.1.1.1", Colo: "LAX"}}
+	SetMockResults([]Result{{IP: "1.1.1.1", Colo: "LAX"}})
 
 	svc := newTestService()
 
@@ -262,8 +266,10 @@ func TestConcurrency(t *testing.T) {
 
 func TestFailureResilience(t *testing.T) {
 	// Save and restore original MockResults
+	mockMu.RLock()
 	original := MockResults
-	defer func() { MockResults = original }()
+	mockMu.RUnlock()
+	defer SetMockResults(original)
 
 	svc := newTestService()
 	svc.results = []Result{
@@ -271,7 +277,7 @@ func TestFailureResilience(t *testing.T) {
 	}
 
 	// Set mock results that will succeed
-	MockResults = []Result{{IP: "2.2.2.2", Colo: "SEA", DownloadSpeedMB: 30}}
+	SetMockResults([]Result{{IP: "2.2.2.2", Colo: "SEA", DownloadSpeedMB: 30}})
 
 	// Run and wait
 	svc.runSpeedTest(10, 10)
@@ -294,7 +300,7 @@ func TestFailureResilience(t *testing.T) {
 	svc.mu.Unlock()
 
 	// Run again with valid mock - results should be updated
-	MockResults = []Result{{IP: "4.4.4.4", Colo: "ORD"}}
+	SetMockResults([]Result{{IP: "4.4.4.4", Colo: "ORD"}})
 	svc.runSpeedTest(10, 10)
 
 	svc.mu.Lock()
@@ -343,12 +349,14 @@ func TestCancelRunning(t *testing.T) {
 
 func TestRunStartsSpeedTest(t *testing.T) {
 	// Save and restore original MockResults
+	mockMu.RLock()
 	original := MockResults
-	defer func() { MockResults = original }()
+	mockMu.RUnlock()
+	defer SetMockResults(original)
 
-	MockResults = []Result{
+	SetMockResults([]Result{
 		{IP: "1.1.1.1", Colo: "LAX", Sent: 4, Received: 4, DownloadSpeedMB: 20},
-	}
+	})
 
 	svc := newTestService()
 
@@ -391,10 +399,12 @@ func TestServiceName(t *testing.T) {
 
 func TestRunConcurrentSafe(t *testing.T) {
 	// Save and restore original MockResults
+	mockMu.RLock()
 	original := MockResults
-	defer func() { MockResults = original }()
+	mockMu.RUnlock()
+	defer SetMockResults(original)
 
-	MockResults = []Result{{IP: "1.1.1.1", Colo: "LAX"}}
+	SetMockResults([]Result{{IP: "1.1.1.1", Colo: "LAX"}})
 
 	svc := newTestService()
 
