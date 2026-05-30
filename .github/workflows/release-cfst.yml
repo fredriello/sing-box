@@ -4,6 +4,8 @@ on:
   push:
     tags:
       - "v*-cfst*"
+    branches:
+      - "v*-cfst*"
   workflow_dispatch:
     inputs:
       version:
@@ -43,9 +45,12 @@ jobs:
         run: |
           if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
             echo "version=${{ inputs.version }}" >> "$GITHUB_OUTPUT"
-          else
+          elif [[ "${GITHUB_REF}" == refs/tags/* ]]; then
             TAG="${GITHUB_REF#refs/tags/v}"
             echo "version=${TAG}" >> "$GITHUB_OUTPUT"
+          else
+            BRANCH="${GITHUB_REF#refs/heads/}"
+            echo "version=${BRANCH}" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Set build tags
@@ -105,9 +110,12 @@ jobs:
         run: |
           if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
             echo "version=${{ inputs.version }}" >> "$GITHUB_OUTPUT"
-          else
+          elif [[ "${GITHUB_REF}" == refs/tags/* ]]; then
             TAG="${GITHUB_REF#refs/tags/v}"
             echo "version=${TAG}" >> "$GITHUB_OUTPUT"
+          else
+            BRANCH="${GITHUB_REF#refs/heads/}"
+            echo "version=${BRANCH}" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Download all artifacts
