@@ -25,6 +25,7 @@ type CFSTService struct {
 
 	mu            sync.Mutex
 	running       bool
+	runID         uint64 // incremented each time a new run starts
 	cancel        context.CancelFunc
 	results       []Result
 	lastRun       time.Time
@@ -68,10 +69,6 @@ func (s *CFSTService) Start(stage adapter.StartStage) error {
 
 		// Optionally run speed test on start
 		if s.options.RunOnStart {
-			s.mu.Lock()
-			s.running = true
-			s.mu.Unlock()
-
 			dn := s.options.DownloadCount
 			if dn <= 0 {
 				dn = 10
@@ -80,7 +77,14 @@ func (s *CFSTService) Start(stage adapter.StartStage) error {
 			if p <= 0 {
 				p = 10
 			}
-			go s.runSpeedTest(dn, p)
+
+			s.mu.Lock()
+			s.running = true
+			s.runID++
+			currentRunID := s.runID
+			s.mu.Unlock()
+
+			go s.runSpeedTest(dn, p, currentRunID)
 		}
 	}
 	return nil
@@ -96,7 +100,7 @@ func (s *CFSTService) Close() error {
 }
 
 // runSpeedTest executes the speed test in a goroutine.
-func (s *CFSTService) runSpeedTest(downloadCount, displayCount int) {
+func (s *CFSTService) runSpeedTest(downloadCount, displayCount int, runID uint64) {
 	ctx, cancel := context.WithCancel(s.ctx)
 	s.mu.Lock()
 	s.cancel = cancel
@@ -105,8 +109,11 @@ func (s *CFSTService) runSpeedTest(downloadCount, displayCount int) {
 	defer func() {
 		cancel()
 		s.mu.Lock()
-		s.running = false
-		s.cancel = nil
+		// Only clear running state if this is still the active run
+		if s.runID == runID {
+			s.running = false
+			s.cancel = nil
+		}
 		s.mu.Unlock()
 	}()
 

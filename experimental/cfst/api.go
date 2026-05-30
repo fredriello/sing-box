@@ -61,6 +61,8 @@ func (s *CFSTService) postRun(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	s.running = true
+	s.runID++
+	currentRunID := s.runID
 	s.mu.Unlock()
 
 	dn := req.DN
@@ -78,7 +80,7 @@ func (s *CFSTService) postRun(w http.ResponseWriter, r *http.Request) {
 		p = 10
 	}
 
-	go s.runSpeedTest(dn, p)
+	go s.runSpeedTest(dn, p, currentRunID)
 
 	render.JSON(w, r, map[string]any{"started": true})
 }

@@ -280,7 +280,11 @@ func TestFailureResilience(t *testing.T) {
 	SetMockResults([]Result{{IP: "2.2.2.2", Colo: "SEA", DownloadSpeedMB: 30}})
 
 	// Run and wait
-	svc.runSpeedTest(10, 10)
+	svc.mu.Lock()
+	svc.runID++
+	currentRunID := svc.runID
+	svc.mu.Unlock()
+	svc.runSpeedTest(10, 10, currentRunID)
 
 	svc.mu.Lock()
 	if len(svc.results) != 1 || svc.results[0].IP != "2.2.2.2" {
@@ -301,7 +305,11 @@ func TestFailureResilience(t *testing.T) {
 
 	// Run again with valid mock - results should be updated
 	SetMockResults([]Result{{IP: "4.4.4.4", Colo: "ORD"}})
-	svc.runSpeedTest(10, 10)
+	svc.mu.Lock()
+	svc.runID++
+	currentRunID = svc.runID
+	svc.mu.Unlock()
+	svc.runSpeedTest(10, 10, currentRunID)
 
 	svc.mu.Lock()
 	if svc.results[0].IP != "4.4.4.4" {

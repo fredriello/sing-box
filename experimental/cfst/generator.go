@@ -26,9 +26,23 @@ func RenderTag(template, base, colo string, index int) string {
 
 // GenerateOutbounds creates dynamic outbounds from CFST results for a given cfess mapping.
 func (s *CFSTService) GenerateOutbounds(mapping option.CFESSMapping, results []Result) error {
-	// Remove old generated outbounds for this mapping
-	s.removeGeneratedOutbounds(mapping.Tag)
+	// 1. Remove old generated outbounds for this mapping
+	s.mu.Lock()
+	oldTags := s.generatedTags[mapping.Tag]
+	oldGroupTag := s.groupTags[mapping.Tag]
+	delete(s.generatedTags, mapping.Tag)
+	delete(s.groupTags, mapping.Tag)
+	s.mu.Unlock()
 
+	// Remove old outbounds (outside lock)
+	if oldGroupTag != "" {
+		_ = s.outbound.Remove(oldGroupTag)
+	}
+	for _, tag := range oldTags {
+		_ = s.outbound.Remove(tag)
+	}
+
+	// 2. Create new outbounds (outside lock)
 	count := mapping.GeneratedCount
 	if count <= 0 || count > len(results) {
 		count = len(results)
@@ -89,15 +103,11 @@ func (s *CFSTService) GenerateOutbounds(mapping option.CFESSMapping, results []R
 		generatedTags = append(generatedTags, tag)
 	}
 
-	// Store generated tags
-	s.generatedTags[mapping.Tag] = generatedTags
-
 	// Create/update urltest group
 	groupTag := mapping.GroupTag
 	if groupTag == "" {
 		groupTag = mapping.Tag + "-group"
 	}
-	s.groupTags[mapping.Tag] = groupTag
 
 	var groupOutbounds []string
 	if mapping.IncludeOriginal {
@@ -123,27 +133,13 @@ func (s *CFSTService) GenerateOutbounds(mapping option.CFESSMapping, results []R
 		}
 	}
 
+	// 3. Store new tags (under lock)
+	s.mu.Lock()
+	s.generatedTags[mapping.Tag] = generatedTags
+	s.groupTags[mapping.Tag] = groupTag
+	s.mu.Unlock()
+
 	return nil
-}
-
-// removeGeneratedOutbounds removes previously generated outbounds for a base tag.
-func (s *CFSTService) removeGeneratedOutbounds(baseTag string) {
-	oldTags, exists := s.generatedTags[baseTag]
-	if !exists {
-		return
-	}
-
-	// Remove the urltest group first
-	if groupTag, hasGroup := s.groupTags[baseTag]; hasGroup {
-		_ = s.outbound.Remove(groupTag)
-		delete(s.groupTags, baseTag)
-	}
-
-	// Remove generated outbounds
-	for _, tag := range oldTags {
-		_ = s.outbound.Remove(tag)
-	}
-	delete(s.generatedTags, baseTag)
 }
 
 // GenerateAllOutbounds generates outbounds for all configured CFESS mappings.
