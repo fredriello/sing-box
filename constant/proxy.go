@@ -22,6 +22,7 @@ const (
 	TypeAnyTLS       = "anytls"
 	TypeShadowsocksR = "shadowsocksr"
 	TypeVLESS        = "vless"
+	TypeCFESS        = "cfess"
 	TypeTUIC         = "tuic"
 	TypeHysteria2    = "hysteria2"
 	TypeTailscale    = "tailscale"
@@ -80,6 +81,8 @@ func ProxyDisplayName(proxyType string) string {
 		return "ShadowsocksR"
 	case TypeVLESS:
 		return "VLESS"
+	case TypeCFESS:
+		return "CFESS"
 	case TypeTUIC:
 		return "TUIC"
 	case TypeHysteria2:
